@@ -15,12 +15,12 @@ struct BoolLine {
     cells: Vec<bool>,
 }
 
-pub struct Board {
+struct Nonogram<'a> {
     rows: Vec<CellLine>,
     columns: Vec<CellLine>,
 
-    row_limits: Vec<Vec<u32>>,
-    col_limits: Vec<Vec<u32>>,
+    row_limits: &'a Vec<Vec<u32>>,
+    col_limits: &'a Vec<Vec<u32>>,
 }
 
 #[derive(Debug, Clone)]
@@ -103,16 +103,14 @@ impl BoolLine {
     }
 }
 
-impl Board {
-    pub fn new(
-        heigth: usize,
-        width: usize,
-        row_limits: Vec<Vec<u32>>,
-        col_limits: Vec<Vec<u32>>,
-    ) -> Self {
+impl<'a> Nonogram<'a> {
+    pub fn new(row_limits: &'a Vec<Vec<u32>>, col_limits: &'a Vec<Vec<u32>>) -> Self {
+        let height = row_limits.len();
+        let width = col_limits.len();
+
         Self {
-            rows: vec![CellLine::new(width); heigth],
-            columns: vec![CellLine::new(heigth); width],
+            rows: vec![CellLine::new(width); height],
+            columns: vec![CellLine::new(height); width],
             row_limits,
             col_limits,
         }
@@ -131,7 +129,7 @@ impl Board {
         true
     }
 
-    pub fn solve(&mut self) {
+    fn solve(&mut self) {
         if self.finished() {
             return;
         }
@@ -275,7 +273,7 @@ impl Board {
     }
 }
 
-impl fmt::Display for Board {
+impl<'a> fmt::Display for Nonogram<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for (i, line) in self.rows.iter().enumerate() {
             writeln!(f, "{}", line)?;
@@ -334,4 +332,8 @@ impl DataSet {
             .map(|line| line.clone())
             .collect();
     }
+}
+
+pub fn solve_nonogram(row_limits: &Vec<Vec<u32>>, col_limits: &Vec<Vec<u32>>) {
+    Nonogram::new(row_limits, col_limits).solve_and_print();
 }
