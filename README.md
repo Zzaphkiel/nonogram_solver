@@ -1,4 +1,4 @@
 # nonogram_solver
 Just to solve Nonogram
 
-使用 `Board::new()` 函数新建一个 `Board` 的 `mut` 实例后，对其使用 `solve()` 或 `solve_and_print()` 方法即可。 
+将横向的限制与纵向的限制放进分别 `Vec<Vec<u32>>` 后, 将其引用传给 `solve_nonogram()` 函数即可
