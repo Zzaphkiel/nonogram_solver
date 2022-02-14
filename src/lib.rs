@@ -36,13 +36,13 @@ impl CellLine {
     }
 
     fn update(&mut self, data_set: &DataSet) {
-        let len = self.cells.len();
+        let len = self.len();
 
         let mut empties = vec![true; len];
         let mut fulls = vec![true; len];
 
-        for line in data_set.lines.iter() {
-            for (i, &b) in line.cells.iter().enumerate() {
+        for line in data_set.iter() {
+            for (i, &b) in line.iter().enumerate() {
                 match b {
                     true => empties[i] = false,
                     false => fulls[i] = false,
@@ -52,8 +52,8 @@ impl CellLine {
 
         for (i, (&e, &f)) in empties.iter().zip(fulls.iter()).enumerate() {
             match (e, f) {
-                (true, false) => self.cells[i] = Cell::Empty,
-                (false, true) => self.cells[i] = Cell::Full,
+                (true, false) => self[i] = Cell::Empty,
+                (false, true) => self[i] = Cell::Full,
                 _ => (),
             }
         }
@@ -63,7 +63,7 @@ impl CellLine {
 use std::fmt;
 impl fmt::Display for CellLine {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for (i, &cell) in self.cells.iter().enumerate() {
+        for (i, &cell) in self.iter().enumerate() {
             let ch = match cell {
                 Cell::Empty => '☒',
                 Cell::Full => '■',
@@ -81,6 +81,21 @@ impl fmt::Display for CellLine {
     }
 }
 
+use std::ops;
+impl ops::Deref for CellLine {
+    type Target = Vec<Cell>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.cells
+    }
+}
+
+impl ops::DerefMut for CellLine {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.cells
+    }
+}
+
 impl BoolLine {
     fn new(len: usize) -> Self {
         Self {
@@ -89,9 +104,9 @@ impl BoolLine {
     }
 
     fn check(&self, line: &CellLine) -> bool {
-        assert_eq!(self.cells.len(), line.cells.len());
+        assert_eq!(self.len(), line.len());
 
-        for (&b, &c) in self.cells.iter().zip(line.cells.iter()) {
+        for (&b, &c) in self.iter().zip(line.iter()) {
             match c {
                 Cell::Full if !b => return false,
                 Cell::Empty if b => return false,
@@ -100,6 +115,20 @@ impl BoolLine {
         }
 
         true
+    }
+}
+
+impl ops::Deref for BoolLine {
+    type Target = Vec<bool>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.cells
+    }
+}
+
+impl ops::DerefMut for BoolLine {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.cells
     }
 }
 
@@ -118,7 +147,7 @@ impl<'a> Nonogram<'a> {
 
     fn finished(&self) -> bool {
         for (line, limit) in self.columns.iter().zip(self.col_limits.iter()) {
-            let true_count = line.cells.iter().filter(|&c| *c == Cell::Full).count();
+            let true_count = line.iter().filter(|&c| *c == Cell::Full).count();
             let finished_true_count = limit.iter().sum::<u32>() as usize;
 
             if true_count != finished_true_count {
@@ -129,51 +158,51 @@ impl<'a> Nonogram<'a> {
         true
     }
 
-    fn solve(&mut self) {
-        if self.finished() {
-            return;
-        }
+    // fn solve(&mut self) {
+    //     if self.finished() {
+    //         return;
+    //     }
 
-        let (mut row_data_set, mut col_data_set) = self.generate_data_set();
+    //     let (mut row_data_set, mut col_data_set) = self.generate_data_set();
 
-        loop {
-            for (i, (row, data_set)) in
-                self.rows.iter_mut().zip(row_data_set.iter()).enumerate()
-            {
-                row.update(data_set);
+    //     loop {
+    //         for (i, (row, data_set)) in
+    //             self.rows.iter_mut().zip(row_data_set.iter()).enumerate()
+    //         {
+    //             row.update(data_set);
 
-                for (j, &cell) in row.cells.iter().enumerate() {
-                    self.columns[j].cells[i] = cell;
-                }
-            }
+    //             for (j, &cell) in row.iter().enumerate() {
+    //                 self.columns[j][i] = cell;
+    //             }
+    //         }
 
-            if self.finished() {
-                break;
-            }
+    //         if self.finished() {
+    //             break;
+    //         }
 
-            for (data_set, col) in col_data_set.iter_mut().zip(self.columns.iter()) {
-                data_set.update(col);
-            }
+    //         for (data_set, col) in col_data_set.iter_mut().zip(self.columns.iter()) {
+    //             data_set.update(col);
+    //         }
 
-            for (i, (col, data_set)) in
-                self.columns.iter_mut().zip(col_data_set.iter()).enumerate()
-            {
-                col.update(data_set);
+    //         for (i, (col, data_set)) in
+    //             self.columns.iter_mut().zip(col_data_set.iter()).enumerate()
+    //         {
+    //             col.update(data_set);
 
-                for (j, &cell) in col.cells.iter().enumerate() {
-                    self.rows[j].cells[i] = cell;
-                }
-            }
+    //             for (j, &cell) in col.iter().enumerate() {
+    //                 self.rows[j][i] = cell;
+    //             }
+    //         }
 
-            if self.finished() {
-                break;
-            }
+    //         if self.finished() {
+    //             break;
+    //         }
 
-            for (data_set, row) in row_data_set.iter_mut().zip(self.rows.iter()) {
-                data_set.update(row);
-            }
-        }
-    }
+    //         for (data_set, row) in row_data_set.iter_mut().zip(self.rows.iter()) {
+    //             data_set.update(row);
+    //         }
+    //     }
+    // }
 
     pub fn solve_and_print(&mut self) {
         if self.finished() {
@@ -198,8 +227,8 @@ impl<'a> Nonogram<'a> {
             {
                 row.update(data_set);
 
-                for (j, &cell) in row.cells.iter().enumerate() {
-                    self.columns[j].cells[i] = cell;
+                for (j, &cell) in row.iter().enumerate() {
+                    self.columns[j][i] = cell;
                 }
             }
 
@@ -223,8 +252,8 @@ impl<'a> Nonogram<'a> {
             {
                 col.update(data_set);
 
-                for (j, &cell) in col.cells.iter().enumerate() {
-                    self.rows[j].cells[i] = cell;
+                for (j, &cell) in col.iter().enumerate() {
+                    self.rows[j][i] = cell;
                 }
             }
 
@@ -314,7 +343,7 @@ impl DataSet {
             for i in begin..=len - limit[index] as usize {
                 let mut new_line = line.clone();
                 for j in 0..limit[index] as usize {
-                    new_line.cells[i + j] = true;
+                    new_line[i + j] = true;
                 }
 
                 frontier.push((new_line, index + 1, limit[index] as usize + i + 1));
@@ -325,8 +354,11 @@ impl DataSet {
     }
 
     fn update(&mut self, cell_line: &CellLine) {
+        if self.lines.len() == 1 {
+            return;
+        }
+
         self.lines = self
-            .lines
             .iter()
             .filter(|line| line.check(cell_line))
             .map(|line| line.clone())
@@ -334,6 +366,50 @@ impl DataSet {
     }
 }
 
+impl ops::Deref for DataSet {
+    type Target = Vec<BoolLine>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.lines
+    }
+}
+
+impl ops::DerefMut for DataSet {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.lines
+    }
+}
+
 pub fn solve_nonogram(row_limits: &Vec<Vec<u32>>, col_limits: &Vec<Vec<u32>>) {
     Nonogram::new(row_limits, col_limits).solve_and_print();
+}
+
+use std::ops::Range;
+
+pub fn solve_a_line(
+    len: usize,
+    empty: &Vec<Range<u32>>,
+    full: &Vec<Range<u32>>,
+    limit: &Vec<u32>,
+) {
+    let mut cell_line = CellLine::new(len);
+
+    for range in empty.iter() {
+        for i in range.start..range.end {
+            cell_line[i as usize] = Cell::Empty;
+        }
+    }
+
+    for range in full.iter() {
+        for i in range.start..range.end {
+            cell_line[i as usize] = Cell::Full;
+        }
+    }
+
+    let mut data_set = DataSet::new(len, limit);
+
+    data_set.update(&cell_line);
+    cell_line.update(&data_set);
+
+    println!("{}", cell_line);
 }
