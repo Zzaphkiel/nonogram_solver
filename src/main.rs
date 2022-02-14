@@ -1,6 +1,10 @@
-use nonogram_solver::solve_nonogram;
+use nonogram_solver::{solve_a_line, solve_nonogram};
 
 fn main() {
+    // just solve a line
+    solve_a_line(30, &vec![1..3], &vec![4..4, 18..19], &vec![1, 1, 3, 6, 3]);
+
+    // solve nonogram
     let row_limits = vec![
         vec![3, 14, 3],
         vec![2, 15, 2],
@@ -63,7 +67,7 @@ fn main() {
         vec![3, 8, 4],
     ];
 
-    let column_limits = vec![
+    let col_limits = vec![
         vec![4, 4],
         vec![3, 2],
         vec![1, 8, 1],
@@ -107,5 +111,5 @@ fn main() {
         vec![3, 2, 8],
     ];
 
-    solve_nonogram(&row_limits, &column_limits);
+    solve_nonogram(&row_limits, &col_limits);
 }
