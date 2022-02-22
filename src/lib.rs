@@ -1,3 +1,7 @@
+use rayon::prelude::*;
+use std::fmt;
+use std::ops;
+
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 enum Cell {
     Unknown,
@@ -24,7 +28,7 @@ struct Nonogram<'a> {
 }
 
 #[derive(Debug, Clone)]
-struct DataSet {
+struct Possibles {
     lines: Vec<BoolLine>,
 }
 
@@ -35,7 +39,7 @@ impl CellLine {
         }
     }
 
-    fn update(&mut self, data_set: &DataSet) {
+    fn update(&mut self, data_set: &Possibles) {
         let len = self.len();
 
         let mut empties = vec![true; len];
@@ -60,7 +64,6 @@ impl CellLine {
     }
 }
 
-use std::fmt;
 impl fmt::Display for CellLine {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for (i, &cell) in self.iter().enumerate() {
@@ -81,7 +84,6 @@ impl fmt::Display for CellLine {
     }
 }
 
-use std::ops;
 impl ops::Deref for CellLine {
     type Target = Vec<Cell>;
 
@@ -118,7 +120,7 @@ impl BoolLine {
     }
 }
 
-impl ops::Deref for BoolLine {
+impl std::ops::Deref for BoolLine {
     type Target = Vec<bool>;
 
     fn deref(&self) -> &Self::Target {
@@ -126,7 +128,7 @@ impl ops::Deref for BoolLine {
     }
 }
 
-impl ops::DerefMut for BoolLine {
+impl std::ops::DerefMut for BoolLine {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.cells
     }
@@ -158,52 +160,6 @@ impl<'a> Nonogram<'a> {
         true
     }
 
-    // fn solve(&mut self) {
-    //     if self.finished() {
-    //         return;
-    //     }
-
-    //     let (mut row_data_set, mut col_data_set) = self.generate_data_set();
-
-    //     loop {
-    //         for (i, (row, data_set)) in
-    //             self.rows.iter_mut().zip(row_data_set.iter()).enumerate()
-    //         {
-    //             row.update(data_set);
-
-    //             for (j, &cell) in row.iter().enumerate() {
-    //                 self.columns[j][i] = cell;
-    //             }
-    //         }
-
-    //         if self.finished() {
-    //             break;
-    //         }
-
-    //         for (data_set, col) in col_data_set.iter_mut().zip(self.columns.iter()) {
-    //             data_set.update(col);
-    //         }
-
-    //         for (i, (col, data_set)) in
-    //             self.columns.iter_mut().zip(col_data_set.iter()).enumerate()
-    //         {
-    //             col.update(data_set);
-
-    //             for (j, &cell) in col.iter().enumerate() {
-    //                 self.rows[j][i] = cell;
-    //             }
-    //         }
-
-    //         if self.finished() {
-    //             break;
-    //         }
-
-    //         for (data_set, row) in row_data_set.iter_mut().zip(self.rows.iter()) {
-    //             data_set.update(row);
-    //         }
-    //     }
-    // }
-
     pub fn solve_and_print(&mut self) {
         if self.finished() {
             return;
@@ -216,7 +172,7 @@ impl<'a> Nonogram<'a> {
         let mut now = Instant::now();
 
         let mut time_spent = Vec::new();
-        let (mut row_data_set, mut col_data_set) = self.generate_data_set();
+        let (mut row_data_set, mut col_data_set) = self.generate_possibles();
 
         time_spent.push(now.elapsed().as_secs_f64());
         now = Instant::now();
@@ -285,20 +241,73 @@ impl<'a> Nonogram<'a> {
         );
     }
 
-    fn generate_data_set(&self) -> (Vec<DataSet>, Vec<DataSet>) {
+    fn generate_possibles(&self) -> (Vec<Possibles>, Vec<Possibles>) {
         let height = self.rows.len();
         let width = self.columns.len();
 
+        // use 'par_iter()' to calculating parallelly
         (
             self.row_limits
-                .iter()
-                .map(|limit| DataSet::new(width, limit))
+                .par_iter()
+                .map(|limit| Possibles::new(width, limit))
                 .collect(),
             self.col_limits
-                .iter()
-                .map(|limit| DataSet::new(height, limit))
+                .par_iter()
+                .map(|limit| Possibles::new(height, limit))
                 .collect(),
         )
+
+        // without using Rayon
+        // let mut row_result = vec![
+        //     Possibles {
+        //         lines: vec![BoolLine::new(1)]
+        //     };
+        //     height
+        // ];
+        // let mut col_result = vec![
+        //     Possibles {
+        //         lines: vec![BoolLine::new(1)]
+        //     };
+        //     width
+        // ];
+
+        // let (tx, rx) = channel();
+        // let mut handles = Vec::new();
+
+        // for (i, limit) in self.row_limits.iter().enumerate() {
+        //     let limit = limit.clone();
+        //     let tx = tx.clone();
+        //     let handle = thread::spawn(move || {
+        //         let possibles = Possibles::new(width, &limit);
+        //         tx.send((true, i, possibles)).unwrap();
+        //     });
+        //     handles.push(handle);
+        // }
+
+        // for (i, limit) in self.col_limits.iter().enumerate() {
+        //     let limit = limit.clone();
+        //     let tx = tx.clone();
+        //     let handle = thread::spawn(move || {
+        //         let possibles = Possibles::new(height, &limit);
+        //         tx.send((false, i, possibles)).unwrap();
+        //     });
+        //     handles.push(handle);
+        // }
+
+        // drop(tx);
+
+        // for handle in handles {
+        //     handle.join().unwrap();
+        // }
+
+        // for (r, i, possibles) in rx {
+        //     match r {
+        //         true => row_result[i] = possibles,
+        //         false => col_result[i] = possibles,
+        //     };
+        // }
+
+        // (row_result, col_result)
     }
 }
 
@@ -316,7 +325,7 @@ impl<'a> fmt::Display for Nonogram<'a> {
     }
 }
 
-impl DataSet {
+impl Possibles {
     fn new(len: usize, limit: &Vec<u32>) -> Self {
         let limit_count = limit.len();
 
@@ -359,14 +368,14 @@ impl DataSet {
         }
 
         self.lines = self
-            .iter()
+            .par_iter()
             .filter(|line| line.check(cell_line))
             .map(|line| line.clone())
             .collect();
     }
 }
 
-impl ops::Deref for DataSet {
+impl std::ops::Deref for Possibles {
     type Target = Vec<BoolLine>;
 
     fn deref(&self) -> &Self::Target {
@@ -374,7 +383,7 @@ impl ops::Deref for DataSet {
     }
 }
 
-impl ops::DerefMut for DataSet {
+impl std::ops::DerefMut for Possibles {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.lines
     }
@@ -384,32 +393,76 @@ pub fn solve_nonogram(row_limits: &Vec<Vec<u32>>, col_limits: &Vec<Vec<u32>>) {
     Nonogram::new(row_limits, col_limits).solve_and_print();
 }
 
-use std::ops::Range;
-
 pub fn solve_a_line(
     len: usize,
-    empty: &Vec<Range<u32>>,
-    full: &Vec<Range<u32>>,
+    empty: &Vec<(u32, u32)>,
+    full: &Vec<(u32, u32)>,
     limit: &Vec<u32>,
 ) {
     let mut cell_line = CellLine::new(len);
 
     for range in empty.iter() {
-        for i in range.start..range.end {
-            cell_line[i as usize] = Cell::Empty;
+        let start = range.0 as usize - 1;
+        let end = start + range.1 as usize;
+
+        for i in start..end {
+            cell_line[i] = Cell::Empty;
         }
     }
 
     for range in full.iter() {
-        for i in range.start..range.end {
-            cell_line[i as usize] = Cell::Full;
+        let start = range.0 as usize - 1;
+        let end = start + range.1 as usize;
+
+        for i in start..end {
+            cell_line[i] = Cell::Full;
         }
     }
 
-    let mut data_set = DataSet::new(len, limit);
+    let limit_count = limit.len();
+    let bool_line = BoolLine::new(len);
+    let mut frontier = vec![(bool_line, 0, 0)];
 
-    data_set.update(&cell_line);
-    cell_line.update(&data_set);
+    let mut empty = vec![true; len];
+    let mut full = vec![true; len];
+
+    while let Some((line, index, begin)) = frontier.pop() {
+        if begin == len && index != limit_count {
+            continue;
+        }
+
+        if index == limit_count {
+            if !line.check(&cell_line) {
+                continue;
+            }
+
+            for (i, &b) in line.iter().enumerate() {
+                match b {
+                    true => empty[i] = false,
+                    false => full[i] = false,
+                }
+            }
+
+            continue;
+        }
+
+        for i in begin..=len - limit[index] as usize {
+            let mut new_line = line.clone();
+            for j in 0..limit[index] as usize {
+                new_line[i + j] = true;
+            }
+
+            frontier.push((new_line, index + 1, limit[index] as usize + i + 1));
+        }
+    }
+
+    for (i, (&e, &f)) in empty.iter().zip(full.iter()).enumerate() {
+        cell_line[i] = match (e, f) {
+            (true, false) => Cell::Empty,
+            (false, true) => Cell::Full,
+            _ => Cell::Unknown,
+        }
+    }
 
     println!("{}", cell_line);
 }
