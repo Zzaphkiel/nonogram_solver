@@ -294,11 +294,11 @@ impl<'a> Nonogram<'a> {
         //     handles.push(handle);
         // }
 
-        // drop(tx);
-
         // for handle in handles {
         //     handle.join().unwrap();
         // }
+
+        // drop(tx);
 
         // for (r, i, possibles) in rx {
         //     match r {
@@ -336,6 +336,10 @@ impl Possibles {
             };
         }
 
+        let left: Vec<_> = (0..limit_count)
+            .map(|i| limit.iter().skip(i).sum::<u32>() as usize + limit_count - i - 1)
+            .collect();
+
         let mut result = vec![];
         let mut frontier = vec![(bool_line, 0, 0)];
 
@@ -349,7 +353,7 @@ impl Possibles {
                 continue;
             }
 
-            for i in begin..=len - limit[index] as usize {
+            for i in begin..=len - left[index] as usize {
                 let mut new_line = line.clone();
                 for j in 0..limit[index] as usize {
                     new_line[i + j] = true;
@@ -368,7 +372,7 @@ impl Possibles {
         }
 
         self.lines = self
-            .par_iter()
+            .iter()
             .filter(|line| line.check(cell_line))
             .map(|line| line.clone())
             .collect();
@@ -423,8 +427,13 @@ pub fn solve_a_line(
     let bool_line = BoolLine::new(len);
     let mut frontier = vec![(bool_line, 0, 0)];
 
+    let left: Vec<_> = (0..limit_count)
+        .map(|i| limit.iter().skip(i).sum::<u32>() as usize + limit_count - i - 1)
+        .collect();
+
     let mut empty = vec![true; len];
     let mut full = vec![true; len];
+    let mut counter = 1;
 
     while let Some((line, index, begin)) = frontier.pop() {
         if begin == len && index != limit_count {
@@ -446,13 +455,14 @@ pub fn solve_a_line(
             continue;
         }
 
-        for i in begin..=len - limit[index] as usize {
+        for i in begin..=len - left[index] as usize {
             let mut new_line = line.clone();
             for j in 0..limit[index] as usize {
                 new_line[i + j] = true;
             }
 
             frontier.push((new_line, index + 1, limit[index] as usize + i + 1));
+            counter += 1;
         }
     }
 
@@ -465,4 +475,5 @@ pub fn solve_a_line(
     }
 
     println!("{}", cell_line);
+    println!("{}", counter);
 }
